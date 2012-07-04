@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+#wait for user input
+#used for debugging
+def pause():
+  raw_input()
+
 # Table mapping response codes to messages; entries have the
 # form {code: (shortmessage, longmessage)}.
 responses = {
