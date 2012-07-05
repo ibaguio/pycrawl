@@ -1,9 +1,30 @@
 #!/usr/bin/env python
+import os
+log_dir = "logs/"
+
+#creates a log folder if it doesnt exist yet
+def checkLogs():
+  if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+    print "Created a log folder.."
+  else:
+    print "Log folder already exist.."
 
 #wait for user input
 #used for debugging
 def pause():
-  raw_input()
+    raw_input()
+
+#given a list of Courses(class) prints it to an output log file
+def courseLog(courses,dept,totClass):
+    f = open("logs/"+dept+"_courses.log","a")
+    t = """DEPT:\t%(dept)s
+    COURSES: \t%(coursCount)d 
+    Tot Class: \t%(totClass)d\n\n"""
+    for course in courses:
+        t += course.printCourseInfo()
+    f.write(t)
+    f.close()
 
 # Table mapping response codes to messages; entries have the
 # form {code: (shortmessage, longmessage)}.
