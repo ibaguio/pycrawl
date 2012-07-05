@@ -18,11 +18,12 @@ headers = {'User-Agent': user_agent}
 
 """Attempts to open a url and returns the contents if url is correct
    returns False or none if error (404, etc)"""
-def getPage(url):
+def getPage(url,x=False):
 	global responses
 	try:
-		print 'Trying to fetch',url
-		req = urllib2.Request(url)
+		if x:
+			print 'Trying to fetch',url
+		req = urllib2.Request(url,None,headers)
 		response = urllib2.urlopen(req)
 		page = response.read()
 		print 'Fetch completed; Size:',len(page)
@@ -55,39 +56,55 @@ def getDepartments(page):
 	return linksList
 
 """Returns the list of courses """
-def getCourses(deptUrl):
+def getCourses(deptUrl,dept):
 	print "crawling for ...%s"%(deptUrl[-15:])
 	page = getPage(deptUrl)
 	rawHTML = page[page.index("<TABLE BORDER=1>"):page.index("</TABLE")]
-	to_remove = r"<TABLE BORDER=1>"
+	to_remove = r'<TABLE BORDER=1>|<FONT SIZE=-2><A[<a-zA-Z0-9\./ \=\:\>\"]*</A></FONT></FONT>|<B><FONT COLOR="FF0000">*</FONT></B>'
 	rawHTML = re.sub(to_remove,"",rawHTML)
-	parser = CourseParser()
 
-	parser.feed(rawHTML)
-	#print rawHTML
+	#replace empty <td></td> tag with empty <td><font></font></td> so parser wouldnt get confused
+	#that there is no class number
+	rawHTML = re.sub("<TD></TD>","<TD><FONT SIZE=-1>N/A</FONT></TD>",rawHTML)
+	parser = CourseParser()
+	parser.customInit(True)	#initialize the courses list
+	parser.feed(rawHTML)	#tell the parser to parse rawHTML
+
+	courses = parser.getCourses()
+	classCount = parser.getClassCount()
+	courseLog(courses,dept,classCount)
+
+	print "  DEPT:\t\t",dept
+	print "  COURSES:\t",len(courses)
+	print "  Total Class:\t",classCount
+	print "  * * * * * * * * * * * *"
 
 #test main function
 def main():
+	#check if a log folder is created, if not create it (utils.py)
+	checkLogs()		
+
 	for url in testUrls[:1]:
 		#retrieve the page
-		page = getPage(url)
+		page = getPage(url,True)
+		term = ""
+
+
 		#get the depts as a list
 		deptList = getDepartments(page)
 
-		deptURLs = []
 		#create a list of department urls
+		deptURLs = []
 		for dept in deptList:
 			url = root+sub_root%{'term':test_term,'dept':dept}
 			deptURLs.append(url)
-
-		for dept in deptURLs:
-			pause = random.randint(0,1)
-			print "pausing for %d sec" %(pause)
+		
+		for dUrl,dept in zip(deptURLs,deptList):
+			pause = random.randint(0,2)
+			print "pause %d sec" %(pause)
 			time.sleep(pause)	#pause for 0 or 1 second on every request to not overload the server
-			getCourses(dept)
-			break
+			getCourses(dUrl,dept)
 
-		#print courseURL
 
 if __name__ == "__main__":
 	main()
