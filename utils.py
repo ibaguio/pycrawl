@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 import os
+import time
+import random
+
 log_dir = "logs/"
 
 #creates a log folder if it doesnt exist yet
@@ -10,17 +13,22 @@ def checkLogs():
   else:
     print "Log folder already exist.."
 
+#pause for 0,1 or 2 second on every request to not overload the server
+def randomPause():
+  pause = random.randint(0,2)
+  print "pause %d sec" %(pause)
+  time.sleep(pause) 
+
 #wait for user input
 #used for debugging
 def pause():
     raw_input()
 
 #given a list of Courses(class) prints it to an output log file
-def courseLog(courses,dept,totClass):
-    f = open("logs/"+dept+"_courses.log","a")
-    t = """DEPT:\t%(dept)s
-    COURSES: \t%(coursCount)d 
-    Tot Class: \t%(totClass)d\n\n"""
+def courseLog(term,courses,dept,totClass):
+    t = term.split()
+    f = open("logs/"+t[0]+"_"+t[1]+"_"+dept+"_courses.log","a")
+    t = "DEPT:\t\t\t%(dept)s\nCOURSES: \t%(coursCount)d\nTot Class: \t%(totClass)d\n"%{'dept':dept,'totClass':totClass,'coursCount': len(courses)}
     for course in courses:
         t += course.printCourseInfo()
     f.write(t)
