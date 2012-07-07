@@ -7,6 +7,7 @@ from urllib2 import HTTPError, URLError
 from utils import *	#self defined utility library
 from bookParser import *
 from courseParser import *
+from xls_utils import *
 
 root = "http://registrar.sc.edu"
 sub_root = "/html/course_listings/Columbia/%(term)s/%(dept)s%(term)s.htm"
@@ -208,6 +209,18 @@ def main():
 	checkLogs()
 	depts = {}
 
+	course_xls = Workbook()
+	book_xls = Workbook()
+
+	dept_sheet = {}
+	book_sheet = {}
+
+	dept_sheet_col = 0
+	dept_sheet_row = 0
+
+	book_sheet_col = 0
+	book_sheet_row = 0
+	
 	for url in testUrls[:1]:
 		#retrieve the page
 		page = getPage(url,x=True)
@@ -219,6 +232,7 @@ def main():
 
 		#create a list of department urls
 		deptURLs = []
+		
 		for dept in deptList:
 			url = root+sub_root%{'term':test_term,'dept':dept}
 			deptURLs.append(url)
@@ -230,11 +244,27 @@ def main():
 			break		#remove this in deployment
 
 		for dName in depts:
+			dept_sheet = course_xls.add_sheet(dName)
+			book_sheet = book_xls.add_sheet(dName)
+			write_course_headers(dept_sheet)
+			dept_sheet_row += 1
+			write_book_headers(book_sheet) #prepare sheets for course list and book list
+			book_sheet_row += 1
 			for course in depts[dName]:
 				for class_ in course.getClasses():
 					randomPause()
 					bookstore = crawlBooks(dept,course,class_,term,yr)
-					parseBookStore(bookstore)
+					book_list = parseBookStore(bookstore)
+					write_class_data(dept_sheet_row, dept_sheet_col, course, class_, book_list, dept_sheet)
+					dept_sheet_row += 1
+
+					for book_itr in book_list:
+						write_book_data(book_sheet_row, book_sheet_col, book_itr, book_sheet)
+						book_sheet_row += 1
+					break
+
+		course_xls.save('Course List.xls')
+		book_xls.save('Book List.xls')
 
 if __name__ == "__main__":
 	main()
