@@ -4,25 +4,35 @@ import time
 import random
 
 log_dir = "logs/"
+xls_dir = "data/"
 
 #creates a log folder if it doesnt exist yet
-def checkLogs():
+def checkDirs():
   if not os.path.exists(log_dir):
     os.makedirs(log_dir)
     print "Created a log folder.."
   else:
     print "Log folder already exist.."
+  if not os.path.exists(xls_dir):
+    os.makedirs(xls_dir)
+    print "Created a data folder.."
+  else:
+    print "Data folder already exist.."
 
-#pause for 0,1 or 2 second on every request to not overload the server
-def randomPause():
-  pause = random.randint(0,2)
-  print "pause %d sec" %(pause)
+#pause on every request to not overload the server
+def randomPause(verbose=False):
+  pause = random.randint(0,3)
+  if verbose:
+    print "pause %d sec" %(pause)
   time.sleep(pause) 
 
 #wait for user input
 #used for debugging
 def pause():
     raw_input()
+
+def clearScreen():
+    os.system( [ 'clear', 'cls' ][ os.name == 'nt' ] )
 
 #given a list of Courses(class) prints it to an output log file
 def courseLog(term,courses,dept,totClass):
