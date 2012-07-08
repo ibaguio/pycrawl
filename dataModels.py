@@ -46,6 +46,7 @@ class Class():
 		self.section = ""
 		self.schedule = ""
 		self.link = ""
+		self.deptLimit = 0
 		self.books = []
 
 	def setSchedule(self,sched):
@@ -58,12 +59,15 @@ class Class():
 		if verbose:
 			f.write("\n"+self.classNumber+" is Section "+section)
 
+	def setDeptLimit(self,limit):
+		self.deptLimit = limit
+
 	def addBook(self,info):
 		newBook = Book(info)
 		self.books.append(newBook)
 
 	def printClassInfo(self):
-		return "   NUMBER:  "+self.classNumber + "\n   SECTION: "+self.section+"\n   SCHED:   "+self.schedule+"\n   * * * * * *\n"
+		return "   NUMBER:  "+self.classNumber + "\n   SECTION: "+self.section+"\n   SCHED:   "+self.schedule+"\n   LIMIT:"+str(self.deptLimit)+"\n   * * * * * *\n"
 
 class Course():
 	"""Course class, contains info about the course, and lists of all classes of that course"""
