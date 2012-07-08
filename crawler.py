@@ -3,16 +3,20 @@
 import urllib,urllib2
 import re
 import sys
+from xlwt import *
 from urllib2 import HTTPError, URLError
 from utils import *	#self defined utility library
 from bookParser import *
 from courseParser import *
 from xls_utils import *
 
-root = "http://registrar.sc.edu"
-sub_root = "/html/course_listings/Columbia/%(term)s/%(dept)s%(term)s.htm"
+#URIs
+homePage = "http://registrar.sc.edu"
+dept_url = "/html/Course_Listings/Columbia/%(term)sshortDept.htm"
+courses_url = "/html/course_listings/Columbia/%(term)s/%(dept)s%(term)s.htm"
+class_link = "/html/course_listings/Columbia/%(term)s/%(dept)s/%(class_level)s/%(dept)s%(courseNum)s%(section)s.htm"
 bookstore_URI = "https://secure.bncollege.com/webapp/wcs/stores/servlet/TBListView"
-test_term = "201241"
+main_term = ""
 
 bookData = { "catalogId": "10001",
 			 "langId"   : "-1",
@@ -27,12 +31,12 @@ bookTitles = []
 cacheR = 0.0
 cacheHIT = 0.0
 
-testUrls = ["http://registrar.sc.edu/html/Course_Listings/Columbia/201241shortDept.htm","http://registrar.sc.edu/html/Course_Listings/Columbia/201141shortDept.htm"]
 user_agent = "Mozilla/4.0 (compatible; MSIE 9.0; Windows NT)"
 headers = {'User-Agent': user_agent}
 
 """Attempts to open a url and returns the contents if url is correct
    returns False or none if error (404, etc)"""
+ #set x to true if you want this function to print details
 def getPage(url,x=False,data=None):
 	global responses
 	if data:
@@ -43,7 +47,8 @@ def getPage(url,x=False,data=None):
 		req = urllib2.Request(url,data,headers)
 		response = urllib2.urlopen(req)
 		page = response.read()
-		print 'Fetch completed; Size:',len(page)
+		if x:
+			print 'Fetch completed; Size:',len(page)
 		return page
 	except HTTPError, e:
 		print 'The server couldn\'t fulfill the request.'
@@ -101,11 +106,35 @@ def getCourses(deptUrl,dept,term):
 	print "  * * * * * * * * * * * *"
 	return list(courses)
 
-"""Given the home/root page, gets the term"""
+#sets the department class limit of each class
+def setDeptClassLimit(courses):
+	for course in courses:
+		for class_ in course.getClasses():
+			clevel = course.courseNumber[0]+"00"
+			url = homePage+class_link%{'term':main_term,'dept':course.department,'class_level':clevel,'section':class_.section,'courseNum':course.courseNumber}
+			#print "Crawling for",course.department,course.courseNumber,"Section",class_.section,"..."
+			page = getPage(url)
+			limit = parseClassLimit(page)
+			class_.setDeptLimit(limit)
+			randomPause()
+
+def parseClassLimit(page):
+	find1 = "<TR><TD><B>Department Limit:  </B></TD><TD>"
+	find2 = "</TD></TR>"
+	page = page[page.index(find1)+len(find1):]
+	limit = page[:page.index(find2)]
+	return int(limit)
+
+
+"""Given the home/homePage page, gets the term"""
 def getTerm(page):
-	search = "by Department for "
-	term = page[page.index(search)+len(search):]
-	term = term[:term.index(',')]
+	try:
+		search = "by Department for "
+		term = page[page.index(search)+len(search):]
+		term = term[:term.index(',')]
+	except:
+		print "Term and year does not exist!"
+		sys.exit()
 	return term, term[-2:]
 
 """Given a class, sends a request to the bookstore for the class's book info"""
@@ -125,9 +154,8 @@ def crawlBooks(dept,course,class_,term,yr):
 				'courseNum': course.courseNumber,
 				'term'	   : t})
 	
-	#get page
 	print "Crawling Book info for ",dept,course.courseNumber,"Section", class_.section
-	page = getPage(bookstore_URI,x=True,data=bookData)
+	page = getPage(bookstore_URI,data=bookData)
 	return page
 
 #checks if the title of the book is already in cache, if it is then
@@ -203,10 +231,101 @@ def parseBookStore(bookstore):
 		pass
 	return books
 
+#asks for user input on what term
+def getUserTerm():
+	clearScreen()
+	print "Choose Term:"
+	print "  1. Fall"
+	print "  2. May"
+	print "  3. Summer I"
+	print "  4. Summer II"
+	print "  5. Spring"	
+	while True:
+		t = raw_input("Term: ")
+		if int(t) in range(1,6):
+			break
+	yr = "0000"
+	while int(yr) < 2011:
+		yr = raw_input("Enter year (format: 20xx): ")
+
+	if t == '1':	#fall
+		term = yr+"41"
+	elif t == '2':#may
+		term = yr+"mm"
+	elif t == '3':#summer i
+		term = yr+"21"
+	elif t == '4':#summer ii
+		term = yr+"31"
+	elif t == '5':#spring
+		term = yr+"11"
+
+	return term
+
+#asks user for a list of departments to crawl
+def getUserDeptToCrawl(depts):
+	print "\n\nChoose which departments to crawl..."
+	print "Formats or Valid Inputs (NOT case sensitive):\n"
+	print "  all\t\t\t  fetches info for ALL departments"
+	print "  <dept>\t\t  fetches info for <dept> ONLY"
+	print "  <dept_1> to <dept_2>\t  fetches info from <dept_1> to <dept_2>"
+	print "  <dept> onward\t\t  fetches info from <dept> to the last dept"
+	print
+	print "    ****************************************************"
+	for i in range(len(depts)/9 + 1):
+		print "  ",
+		for v in range(9):
+			if 9*i + v < len(depts):
+				print "",depts[9*i + v],
+		print
+	print "    ****************************************************"
+	print
+	while True:
+		inp = raw_input("Input Department: ")
+		if inp.lower() == 'all':
+			print "Crawling ALL departments; Count",len(depts)
+			return depts
+		elif " to " in inp.lower():
+			first = inp[:inp.index(" to")].upper()
+			last = inp[inp.index("to ")+3:].upper()
+			try:
+				f = depts.index(first)
+			except:
+				print "Invalid department '"+first+"'"
+				continue
+			try:
+				l = depts.index(last)
+			except:
+				print "Invalid department '"+last+"'"
+				continue
+			if f >= l:
+				print "Invalid department range"
+			else:
+				ret = depts[f:l+1]
+				print "Crawling from",first,"to",last+"; Count",len(ret)
+				return ret
+		elif "onward" in inp.lower():
+			dept = inp.split()[0].upper()
+			try:		
+				ret = depts[depts.index(dept):]		
+				print "Crawling",dept,"onwards; Count",len(ret)
+				return ret
+			except:
+				print "Invalid department '"+dept+"'"
+		else:
+			dept = inp.upper()
+			print "Crawling",dept+"; Count 1"
+			try:
+				return [depts[depts.index(dept)]]
+			except:
+				print "Invalid department '"+dept+"'"
+
 #test main function
 def main():
 	#check if a log folder is created, if not create it (utils.py)
-	checkLogs()
+	global main_term
+	main_term = getUserTerm()
+
+	checkDirs()
 	depts = {}
 
 	course_xls = Workbook()
@@ -221,50 +340,64 @@ def main():
 	book_sheet_col = 0
 	book_sheet_row = 0
 	
-	for url in testUrls[:1]:
-		#retrieve the page
-		page = getPage(url,x=True)
-		term,yr = getTerm(page)
-		print "Term is:",term
+	url = homePage + dept_url%{'term':main_term}
+	#retrieve the page
+	page = getPage(url,x=True)
+	term,yr = getTerm(page)
+	print "\n******************\nTerm is:",term,"\n******************\n"
 
-		#get the depts as a list
-		deptList = getDepartments(page)
+	#get the depts as a list
+	deptList = getDepartments(page)
+	print
 
-		#create a list of department urls
-		deptURLs = []
+	#create a list of department urls
+	deptURLs = []
 		
-		for dept in deptList:
-			url = root+sub_root%{'term':test_term,'dept':dept}
-			deptURLs.append(url)
-		
-		for dUrl,dept in zip(deptURLs,deptList):
-			randomPause()
-			courses = getCourses(dUrl,dept,term)
-			depts[dept] = courses
-			break		#remove this in deployment
+	#gets all the departments in the home page
+	for dept in deptList:
+		url = homePage+courses_url%{'term':main_term,'dept':dept}
+		deptURLs.append(url)
 
-		for dName in depts:
-			dept_sheet = course_xls.add_sheet(dName)
-			book_sheet = book_xls.add_sheet(dName)
-			write_course_headers(dept_sheet)
-			dept_sheet_row += 1
-			write_book_headers(book_sheet) #prepare sheets for course list and book list
-			book_sheet_row += 1
-			for course in depts[dName]:
-				for class_ in course.getClasses():
-					randomPause()
-					bookstore = crawlBooks(dept,course,class_,term,yr)
-					book_list = parseBookStore(bookstore)
-					write_class_data(dept_sheet_row, dept_sheet_col, course, class_, book_list, dept_sheet)
-					dept_sheet_row += 1
+	#asks the user what departments to crawl
+	depts_to_crawl = getUserDeptToCrawl(deptList)
 
-					for book_itr in book_list:
-						write_book_data(book_sheet_row, book_sheet_col, book_itr, book_sheet)
-						book_sheet_row += 1
-					break
+	#gets the courses per department
+	for dUrl,dept in zip(deptURLs,depts_to_crawl):
+		randomPause()
+		courses = getCourses(dUrl,dept,term)
+		depts[dept] = courses
 
-		course_xls.save('Course List.xls')
-		book_xls.save('Book List.xls')
+	#gets the course limit of each class per dept
+	for dept in depts:
+		print "Getting Class limit for classes in",dept,"..."
+		print "Please Wait this might take a while..."
+		setDeptClassLimit(depts[dept])
+		print "Class Limit for all classes in",dept,"crawled"
+
+	for dName in depts:
+		dept_sheet = course_xls.add_sheet(dName)
+		book_sheet = book_xls.add_sheet(dName)
+		write_course_headers(dept_sheet)
+		dept_sheet_row += 1
+		write_book_headers(book_sheet) #prepare sheets for course list and book list
+		book_sheet_row += 1
+		for course in depts[dName]:
+			for class_ in course.getClasses():
+				randomPause()
+				bookstore = crawlBooks(dept,course,class_,term,yr)
+				book_list = parseBookStore(bookstore)
+				write_class_data(dept_sheet_row, dept_sheet_col, course, class_, book_list, dept_sheet)
+				dept_sheet_row += 1
+
+				for book_itr in book_list:
+					write_book_data(book_sheet_row, book_sheet_col, book_itr, book_sheet)
+					book_sheet_row += 1
+				break
+	print "Saving COURSES to xls file..."
+	course_xls.save(xls_dir+'Course List.xls')
+	print "Saving BOOKS to xls file..."
+	book_xls.save(xls_dir+'Book List.xls')
+	print "FINISHED CRAWLING\nHave a nice day!"
 
 if __name__ == "__main__":
 	main()
