@@ -14,7 +14,7 @@ from xls_utils import *
 homePage = "http://registrar.sc.edu"
 dept_url = "/html/Course_Listings/Columbia/%(term)sshortDept.htm"
 courses_url = "/html/course_listings/Columbia/%(term)s/%(dept)s%(term)s.htm"
-class_link = "/html/course_listings/Columbia/%(term)s/%(dept)s/%(class_level)s/%(dept)s%(courseNum)s%(section)s.htm"
+class_link = "/html/course_listings/Columbia/%(term)s/%(dept)s/%(class_level)s/%(dept)s%(courseNum)s%(letter)s%(section)s.htm"
 bookstore_URI = "https://secure.bncollege.com/webapp/wcs/stores/servlet/TBListView"
 main_term = ""
 
@@ -37,21 +37,21 @@ headers = {'User-Agent': user_agent}
 """Attempts to open a url and returns the contents if url is correct
    returns False or none if error (404, etc)"""
  #set x to true if you want this function to print details
-def getPage(url,x=False,data=None):
+def getPage(url,verbose=False,data=None):
 	global responses
 	if data:
 		data = urllib.urlencode(data)
 	try:
-		if x:
+		if verbose:
 			print 'Trying to fetch',url
 		req = urllib2.Request(url,data,headers)
 		response = urllib2.urlopen(req)
 		page = response.read()
-		if x:
+		if verbose:
 			print 'Fetch completed; Size:',len(page)
 		return page
 	except HTTPError, e:
-		print 'The server couldn\'t fulfill the request.'
+		print 'The server couldn\'t fulfill the request. On URL',url
 		print 'Error code:', e.code, responses[int(e.code)]
 	except URLError, e:
 		print 'Failed to reach',url
@@ -111,7 +111,10 @@ def setDeptClassLimit(courses):
 	for course in courses:
 		for class_ in course.getClasses():
 			clevel = course.courseNumber[0]+"00"
-			url = homePage+class_link%{'term':main_term,'dept':course.department,'class_level':clevel,'section':class_.section,'courseNum':course.courseNumber}
+			letter = ""		#url of may terms are different! err!
+			if main_term[-2:] == "mm":
+				letter = "M"
+			url = homePage+class_link%{'term':main_term,'dept':course.department,'class_level':clevel,'section':class_.section,'courseNum':course.courseNumber,'letter':letter}
 			#print "Crawling for",course.department,course.courseNumber,"Section",class_.section,"..."
 			page = getPage(url)
 			limit = parseClassLimit(page)
@@ -124,7 +127,6 @@ def parseClassLimit(page):
 	page = page[page.index(find1)+len(find1):]
 	limit = page[:page.index(find2)]
 	return int(limit)
-
 
 """Given the home/homePage page, gets the term"""
 def getTerm(page):
@@ -147,14 +149,18 @@ def crawlBooks(dept,course,class_,term,yr):
 		t = "A"+yr
 	elif "May" in term:
 		t = "A"+yr
-
+	elif "Spring":
+		t = "W"+yr
+	else:
+		print "WARNING NO TERM IN CRAWLING BOOKS"
+	
 	#Finish filling up data to be sent to server thru post
 	bookData["courseXml"] = courseXml%({ 'dept'	   : dept,
 				'section'  : class_.section,
 				'courseNum': course.courseNumber,
 				'term'	   : t})
 	
-	print "Crawling Book info for ",dept,course.courseNumber,"Section", class_.section
+	print "Crawling Book info for",dept,course.courseNumber,"Section", class_.section
 	page = getPage(bookstore_URI,data=bookData)
 	return page
 
@@ -262,7 +268,7 @@ def getUserTerm():
 	return term
 
 #asks user for a list of departments to crawl
-def getUserDeptToCrawl(depts):
+def getUserDeptToCrawl(deptURL,deptNames):
 	print "\n\nChoose which departments to crawl..."
 	print "Formats or Valid Inputs (NOT case sensitive):\n"
 	print "  all\t\t\t  fetches info for ALL departments"
@@ -271,51 +277,53 @@ def getUserDeptToCrawl(depts):
 	print "  <dept> onward\t\t  fetches info from <dept> to the last dept"
 	print
 	print "    ****************************************************"
-	for i in range(len(depts)/9 + 1):
+	for i in range(len(deptNames)/9 + 1):
 		print "  ",
 		for v in range(9):
-			if 9*i + v < len(depts):
-				print "",depts[9*i + v],
+			if 9*i + v < len(deptNames):
+				print "",deptNames[9*i + v],
 		print
 	print "    ****************************************************"
 	print
 	while True:
 		inp = raw_input("Input Department: ")
 		if inp.lower() == 'all':
-			print "Crawling ALL departments; Count",len(depts)
-			return depts
+			print "Crawling ALL departments; Count",len(deptNames)
+			return deptNames
 		elif " to " in inp.lower():
 			first = inp[:inp.index(" to")].upper()
 			last = inp[inp.index("to ")+3:].upper()
 			try:
-				f = depts.index(first)
+				f = deptNames.index(first)
 			except:
 				print "Invalid department '"+first+"'"
 				continue
 			try:
-				l = depts.index(last)
+				l = deptNames.index(last)
 			except:
 				print "Invalid department '"+last+"'"
 				continue
 			if f >= l:
 				print "Invalid department range"
 			else:
-				ret = depts[f:l+1]
-				print "Crawling from",first,"to",last+"; Count",len(ret)
-				return ret
+				dURL = deptURL[f:l+1]
+				dNames = deptNames[f:l+1]
+				print "Crawling from",first,"to",last+"; Count",len(dNames)
+				return dURL,dNames
 		elif "onward" in inp.lower():
 			dept = inp.split()[0].upper()
-			try:		
-				ret = depts[depts.index(dept):]		
-				print "Crawling",dept,"onwards; Count",len(ret)
-				return ret
+			try:	
+				dURL = deptURL[deptNames.index(dept):]
+				dNames = deptNames[deptNames.index(dept):]
+				print "Crawling",dept,"onwards; Count",len(dNames)
+				return dURL,dNames
 			except:
 				print "Invalid department '"+dept+"'"
 		else:
 			dept = inp.upper()
 			print "Crawling",dept+"; Count 1"
 			try:
-				return [depts[depts.index(dept)]]
+				return [deptURL[deptNames.index(dept)]],[deptNames[deptNames.index(dept)]]
 			except:
 				print "Invalid department '"+dept+"'"
 
@@ -342,7 +350,7 @@ def main():
 	
 	url = homePage + dept_url%{'term':main_term}
 	#retrieve the page
-	page = getPage(url,x=True)
+	page = getPage(url,verbose=True)
 	term,yr = getTerm(page)
 	print "\n******************\nTerm is:",term,"\n******************\n"
 
@@ -359,7 +367,7 @@ def main():
 		deptURLs.append(url)
 
 	#asks the user what departments to crawl
-	depts_to_crawl = getUserDeptToCrawl(deptList)
+	deptURLs,depts_to_crawl = getUserDeptToCrawl(deptURLs,deptList)
 
 	#gets the courses per department
 	for dUrl,dept in zip(deptURLs,depts_to_crawl):
@@ -367,14 +375,12 @@ def main():
 		courses = getCourses(dUrl,dept,term)
 		depts[dept] = courses
 
-	#gets the course limit of each class per dept
-	for dept in depts:
-		print "Getting Class limit for classes in",dept,"..."
-		print "Please Wait this might take a while..."
-		setDeptClassLimit(depts[dept])
-		print "Class Limit for all classes in",dept,"crawled"
-
 	for dName in depts:
+		#gets the course limit of each class per dept
+		print "Getting Class limit for classes in",dept
+		print "Please Wait this might take a while..."
+		setDeptClassLimit(depts[dName])
+		print "Class Limit for all classes in",dept,"crawled"
 		dept_sheet = course_xls.add_sheet(dName)
 		book_sheet = book_xls.add_sheet(dName)
 		write_course_headers(dept_sheet)
