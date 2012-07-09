@@ -97,10 +97,10 @@ class CourseParser(HTMLParser):
 			self.waitingFor= -1
 			self.next = 3 								#next data to read is the class link
 		elif self.waitingFor == 3:
-			self.waitingFor= 5							#do not store link, do nothing
+			self.waitingFor = 5							#do not store link, do nothing
 		elif self.waitingFor == 4:						#ignore coursecode, we already have this info
 			pass
-		elif self.waitingFor	== 5:
+		elif self.waitingFor == 5:
 			try: 
 				section = data.split()[2]			#get the section
 			except IndexError:
