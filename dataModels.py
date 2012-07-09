@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-f = None			#file pointer
+file_ = None			#file pointer
 verbose = False		#debugging log
+if verbose:
+	file_ = open("logs/courselogs.log","a")
 
 class Book():
 	"""Book class, contains info about the classes' books"""
@@ -52,12 +54,12 @@ class Class():
 	def setSchedule(self,sched):
 		self.schedule = sched
 		if verbose:
-			f.write("\n"+self.classNumber+" Sched: "+sched)
+			file_.write("\n   "+self.classNumber+" Sched: "+sched)
 
 	def setSection(self,section):
 		self.section = section
 		if verbose:
-			f.write("\n"+self.classNumber+" is Section "+section)
+			file_.write("\n   "+self.classNumber+" is Section "+section)
 
 	def setDeptLimit(self,limit):
 		self.deptLimit = limit
@@ -72,21 +74,19 @@ class Class():
 class Course():
 	"""Course class, contains info about the course, and lists of all classes of that course"""
 	def __init__(self,dept,courseName,courseNumber):
-		global f
 		self.department = dept
 		self.courseName = courseName
 		self.courseNumber = courseNumber
 		self.classes = []	#list of classes for this course
 		if verbose:	
 			#print "NEW COURSE:",courseNumber,courseName
-			f.write('\n'+"NEW COURSE:"+courseNumber+courseName)
+			file_.write("\nNEW COURSE:"+courseNumber+" "+courseName)
 
 	def addClass(self,newClass):
-		global f	
 		self.classes.append(newClass)
 		if verbose:
 			#print self.courseNumber,"NEW CLASS ADDED:"
-			f.write("\nNEW CLASS ADDED: "+self.courseNumber)
+			file_.write("\n   NEW CLASS ADDED: "+self.courseNumber+" "+newClass.classNumber)
 
 	#returns the last added class
 	def getLastClass(self):
