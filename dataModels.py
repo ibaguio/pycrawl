@@ -45,11 +45,16 @@ class Class():
 	"""Class class, contains info about the class(course class not OOP class :P)"""
 	def __init__(self,classNumber):
 		self.classNumber = classNumber
+		self.courseNumber = ""
 		self.section = ""
 		self.schedule = ""
 		self.link = ""
-		self.deptLimit = 0
 		self.books = []
+		self.courseNumber = ""
+		self.deptLimit = 0
+
+	def setCourseNumber(self,cNum):
+		self.courseNumber = cNum
 
 	def setSchedule(self,sched):
 		self.schedule = sched
