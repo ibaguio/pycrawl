@@ -2,6 +2,7 @@
 from HTMLParser import HTMLParser
 from dataModels import *
 import sys
+import string
 
 # CODE      DESCRIPTION
 #  -1 		waiting for nothing
@@ -78,11 +79,11 @@ class CourseParser(HTMLParser):
 	#this function is called whenever a data is parsed
 	#a data is the string between the start and end tag
 	#<start_tag> DATA <end tag>
-	#watingFor marks the expected data to be read
+	#waitingFor marks the expected data to be read
 	def handle_data(self,data):
 		#expects a new Course
 		if verbose:
-			f.write('\n'+"DATA:"+data)
+			f.write('\n'+"DATA:"+data +"\b wait: "+str(self.waitingFor))
 		if self.waitingFor == 1:
 			data = data.split()						#splits the data to list of words
 			cname = str(" ".join(data[2:]))			#course name: 3rd word till last word
@@ -96,10 +97,12 @@ class CourseParser(HTMLParser):
 			self.courses[-1].addClass(Class(classNumber)) 	#adds a new class to the last course
 			self.waitingFor= -1
 			self.next = 3 								#next data to read is the class link
+
 		elif self.waitingFor == 3:
-			self.waitingFor = 5							#do not store link, do nothing
-		elif self.waitingFor == 4:						#ignore coursecode, we already have this info
-			pass
+			cNum = data.split()[1]
+			self.courses[-1].getLastClass().setCourseNumber(cNum)
+			self.waitingFor = 5
+		
 		elif self.waitingFor == 5:
 			try: 
 				section = data.split()[2]			#get the section
