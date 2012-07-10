@@ -31,7 +31,7 @@ def write_book_headers(sheet):
 def write_class_data(row, col, course,  class_, book_list, sheet):
 	col = 0
 	sheet.write(row, col, class_.classNumber) #write class_ number
-	course_name = "%s %s" % (course.department, course.courseNumber)
+	course_name = "%s %s" % (course.department, class_.courseNumber)
 	sheet.write(row, col+1, course_name) #write course name and course number
 	sheet.write(row, col+2, class_.section)
 	sheet.write(row, col+3, class_.deptLimit)
