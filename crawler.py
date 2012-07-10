@@ -14,7 +14,7 @@ from xls_utils import *
 homePage = "http://registrar.sc.edu"
 dept_url = "/html/Course_Listings/Columbia/%(term)sshortDept.htm"
 courses_url = "/html/course_listings/Columbia/%(term)s/%(dept)s%(term)s.htm"
-class_link = "/html/course_listings/Columbia/%(term)s/%(dept)s/%(class_level)s/%(dept)s%(courseNum)s%(letter)s%(section)s.htm"
+class_link = "/html/course_listings/Columbia/%(term)s/%(dept)s/%(class_level)s/%(dept)s%(courseNum)s%(isMay)s%(section)s.htm"
 bookstore_URI = "https://secure.bncollege.com/webapp/wcs/stores/servlet/TBListView"
 main_term = ""
 
@@ -111,10 +111,10 @@ def setDeptClassLimit(courses):
 	for course in courses:
 		for class_ in course.getClasses():
 			clevel = course.courseNumber[0]+"00"
-			letter = ""		#url of may terms are different! err!
+			isMay = ""		#url of may terms are different! err!
 			if main_term[-2:] == "mm":
-				letter = "M"
-			url = homePage+class_link%{'term':main_term,'dept':course.department,'class_level':clevel,'section':class_.section,'courseNum':course.courseNumber,'letter':letter}
+				isMay = "M"
+			url = homePage+class_link%{'term':main_term,'dept':course.department,'class_level':clevel,'section':class_.section,'courseNum':class_.courseNumber,'isMay':isMay}
 			#print "Crawling for",course.department,course.courseNumber,"Section",class_.section,"..."
 			page = getPage(url)
 			limit = parseClassLimit(page)
@@ -160,7 +160,7 @@ def crawlBooks(dept,course,class_,term,yr):
 				'courseNum': course.courseNumber,
 				'term'	   : t})
 	
-	print "Crawling Book info for",dept,course.courseNumber,"Section", class_.section
+	print "Crawling Book info for",dept,class_.courseNumber,"Section", class_.section
 	page = getPage(bookstore_URI,data=bookData)
 	return page
 
@@ -248,9 +248,12 @@ def getUserTerm():
 	print "  5. Spring"	
 	while True:
 		t = raw_input("Term: ")
-		if int(t) in range(1,6):
+		if int(t[0]) in range(1,6):
 			break
 	yr = "0000"
+	if len(t) == 6:
+		yr = t[2:]
+		t = t[0]
 	while int(yr) < 2011:
 		yr = raw_input("Enter year (format: 20xx): ")
 
@@ -369,18 +372,20 @@ def main():
 	#asks the user what departments to crawl
 	deptURLs,depts_to_crawl = getUserDeptToCrawl(deptURLs,deptList)
 
+	print "dtocrawl", depts_to_crawl
 	#gets the courses per department
 	for dUrl,dept in zip(deptURLs,depts_to_crawl):
 		randomPause()
 		courses = getCourses(dUrl,dept,term)
 		depts[dept] = courses
 
-	for dName in depts:
+	for dName in depts_to_crawl:
+		print "DNAME",dName
 		#gets the course limit of each class per dept
-		print "Getting Class limit for classes in",dept
+		print "Getting Class limit for classes in",dName
 		print "Please Wait this might take a while..."
 		setDeptClassLimit(depts[dName])
-		print "Class Limit for all classes in",dept,"crawled"
+		print "Class Limit for all classes in",dName,"crawled"
 		dept_sheet = course_xls.add_sheet(dName)
 		book_sheet = book_xls.add_sheet(dName)
 		write_course_headers(dept_sheet)
@@ -390,8 +395,7 @@ def main():
 		for course in depts[dName]:
 			for class_ in course.getClasses():
 				randomPause()
-				bookstore = crawlBooks(dept,course,class_,term,yr)
-				book_list = parseBookStore(bookstore)
+				book_list = parseBookStore(crawlBooks(dName,course,class_,term,yr))
 				write_class_data(dept_sheet_row, dept_sheet_col, course, class_, book_list, dept_sheet)
 				dept_sheet_row += 1
 
