@@ -86,12 +86,11 @@ def getCourses(deptUrl,dept,term):
 	print "crawling for ...%s"%(deptUrl[-15:])
 	page = getPage(deptUrl)
 	rawHTML = page[page.index("<TABLE BORDER=1>"):page.index("</TABLE")]
-	to_remove = r'<TABLE BORDER=1>|<FONT SIZE=-2><A[<a-zA-Z0-9\./ \=\:\>\"]*</A></FONT></FONT>|<B><FONT COLOR="FF0000">*</FONT></B>'
+	to_remove = r'<TABLE BORDER=1>|<FONT SIZE=-2><A[<a-zA-Z0-9\./ \=\:\>\"]*</A></FONT></FONT>|<B><FONT COLOR=\"FF0000\">\*</FONT></B>'
 	rawHTML = re.sub(to_remove,"",rawHTML)
 
 	#replace empty <td></td> tag with empty <td><font></font></td> so parser wouldnt get confused
 	#that there is no class number
-	rawHTML = re.sub("<TD></TD>","<TD><FONT SIZE=-1>N/A</FONT></TD>",rawHTML)
 	parser = CourseParser()
 	parser.customInit(dept,True)	#initialize the courses list
 	parser.feed(rawHTML)			#tell the parser to parse rawHTML
@@ -372,7 +371,6 @@ def main():
 	#asks the user what departments to crawl
 	deptURLs,depts_to_crawl = getUserDeptToCrawl(deptURLs,deptList)
 
-	print "dtocrawl", depts_to_crawl
 	#gets the courses per department
 	for dUrl,dept in zip(deptURLs,depts_to_crawl):
 		randomPause()
@@ -380,7 +378,6 @@ def main():
 		depts[dept] = courses
 
 	for dName in depts_to_crawl:
-		print "DNAME",dName
 		#gets the course limit of each class per dept
 		print "Getting Class limit for classes in",dName
 		print "Please Wait this might take a while..."
