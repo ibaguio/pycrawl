@@ -83,7 +83,7 @@ class CourseParser(HTMLParser):
 	def handle_data(self,data):
 		#expects a new Course
 		if verbose:
-			f.write('\n'+"DATA:"+data +"\b wait: "+str(self.waitingFor))
+			f.write('\n'+"DATA:"+data[:-1] +" wait: "+code[self.waitingFor])
 		if self.waitingFor == 1:
 			data = data.split()						#splits the data to list of words
 			cname = str(" ".join(data[2:]))			#course name: 3rd word till last word
