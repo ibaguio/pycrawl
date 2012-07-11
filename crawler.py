@@ -403,10 +403,10 @@ def main():
 					write_book_data(book_sheet_row, book_sheet_col, book_itr, book_sheet)
 					book_sheet_row += 1
 				#break
-				course_xls.save(xls_dir+'Course List.xls')
-				book_sheet_row = 0
-			book_xls.save(xls_dir+'Book List.xls')
-			dept_sheet_row = 0
+				book_xls.save(xls_dir+'Book List.xls')
+			course_xls.save(xls_dir+'Course List.xls')
+			book_sheet_row = 0
+		dept_sheet_row = 0
 	
 	print "FINISHED CRAWLING\nHave a nice day!"
 
